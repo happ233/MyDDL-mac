@@ -23,3 +23,6 @@ Package.resolved
 
 # Debug logs
 *.log
+.build
+.idea
+MyDDL.app/Contents/MacOS/MyDDL
