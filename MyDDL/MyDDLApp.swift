@@ -3,11 +3,13 @@ import SwiftUI
 @main
 struct MyDDLApp: App {
     @StateObject private var dataStore = DataStore()
+    @StateObject private var themeManager = ThemeManager.shared
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(dataStore)
+                .environmentObject(themeManager)
                 .frame(minWidth: 1000, minHeight: 700)
         }
         .windowStyle(.hiddenTitleBar)

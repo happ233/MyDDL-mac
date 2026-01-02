@@ -9,9 +9,15 @@ let package = Package(
     products: [
         .executable(name: "MyDDL", targets: ["MyDDL"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.24.0")
+    ],
     targets: [
         .executableTarget(
             name: "MyDDL",
+            dependencies: [
+                .product(name: "GRDB", package: "GRDB.swift")
+            ],
             path: "MyDDL"
         )
     ]
