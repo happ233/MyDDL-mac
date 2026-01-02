@@ -5,7 +5,6 @@ struct CalendarHeader: View {
     @Binding var viewType: CalendarViewType
     @Binding var showingTaskForm: Bool
     @EnvironmentObject var dataStore: DataStore
-    @State private var showingSettings = false
 
     var body: some View {
         HStack(spacing: DesignSystem.Spacing.lg) {
@@ -30,7 +29,8 @@ struct CalendarHeader: View {
                             .fontWeight(.semibold)
                             .foregroundColor(DesignSystem.Colors.accent)
                     }
-                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .fixedSize()
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
                     .padding(.vertical, DesignSystem.Spacing.sm)
                     .background(
                         RoundedRectangle(cornerRadius: DesignSystem.Radius.small)
@@ -106,33 +106,12 @@ struct CalendarHeader: View {
                 }
             }
             .buttonStyle(GradientButtonStyle())
-
-            // 设置按钮
-            Button(action: { showingSettings = true }) {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        RoundedRectangle(cornerRadius: DesignSystem.Radius.small)
-                            .fill(DesignSystem.Colors.elevatedBackground)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignSystem.Radius.small)
-                                    .stroke(DesignSystem.Colors.border, lineWidth: 1)
-                            )
-                    )
-            }
-            .buttonStyle(.plain)
-            .hoverEffect(scale: 1.1)
         }
         .padding(.horizontal, DesignSystem.Spacing.xl)
         .padding(.vertical, DesignSystem.Spacing.lg)
         .background(
             DesignSystem.Colors.cardBackground
         )
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(isPresented: $showingSettings)
-        }
     }
 
     private var tasksForCurrentView: Int {
@@ -237,8 +216,9 @@ struct ViewTypeButton: View {
                     .font(DesignSystem.Fonts.caption)
                     .fontWeight(isSelected ? .semibold : .medium)
             }
+            .fixedSize()
             .foregroundColor(isSelected ? .white : (isHovered ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary))
-            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.horizontal, DesignSystem.Spacing.lg)
             .padding(.vertical, DesignSystem.Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.small)

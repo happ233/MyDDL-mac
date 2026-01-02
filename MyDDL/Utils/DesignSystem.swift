@@ -1,39 +1,43 @@
 import SwiftUI
 
-// MARK: - 设计系统 (暗色主题)
+// MARK: - 设计系统 (支持多主题)
 struct DesignSystem {
-    // 颜色 - 灰黑色主题
+    // 动态颜色 - 根据当前主题返回
     struct Colors {
+        private static var currentColors: ThemeColors {
+            ThemeColors.colors(for: ThemeManager.shared.currentTheme)
+        }
+
         // 背景色
-        static let background = Color(red: 0.11, green: 0.11, blue: 0.12)
-        static let secondaryBackground = Color(red: 0.15, green: 0.15, blue: 0.16)
-        static let cardBackground = Color(red: 0.18, green: 0.18, blue: 0.20)
-        static let elevatedBackground = Color(red: 0.22, green: 0.22, blue: 0.24)
+        static var background: Color { currentColors.background }
+        static var secondaryBackground: Color { currentColors.secondaryBackground }
+        static var cardBackground: Color { currentColors.cardBackground }
+        static var elevatedBackground: Color { currentColors.elevatedBackground }
 
-        // 强调色
-        static let accent = Color(red: 0.45, green: 0.55, blue: 1.0)
-        static let accentLight = Color(red: 0.60, green: 0.70, blue: 1.0)
+        // 强调色（保持不变）
+        static let accent = ThemeColors.accent
+        static let accentLight = ThemeColors.accentLight
 
-        // 语义色
-        static let success = Color(red: 0.30, green: 0.85, blue: 0.60)
-        static let successLight = Color(red: 0.45, green: 0.92, blue: 0.72)
-        static let warning = Color(red: 1.0, green: 0.75, blue: 0.30)
-        static let warningLight = Color(red: 1.0, green: 0.85, blue: 0.50)
-        static let danger = Color(red: 1.0, green: 0.45, blue: 0.50)
-        static let dangerLight = Color(red: 1.0, green: 0.60, blue: 0.65)
+        // 语义色（保持不变）
+        static let success = ThemeColors.success
+        static let successLight = ThemeColors.successLight
+        static let warning = ThemeColors.warning
+        static let warningLight = ThemeColors.warningLight
+        static let danger = ThemeColors.danger
+        static let dangerLight = ThemeColors.dangerLight
 
         // 文字色
-        static let textPrimary = Color(red: 0.95, green: 0.95, blue: 0.97)
-        static let textSecondary = Color(red: 0.70, green: 0.70, blue: 0.75)
-        static let textTertiary = Color(red: 0.50, green: 0.50, blue: 0.55)
+        static var textPrimary: Color { currentColors.textPrimary }
+        static var textSecondary: Color { currentColors.textSecondary }
+        static var textTertiary: Color { currentColors.textTertiary }
 
         // 边框和分割线
-        static let border = Color.white.opacity(0.12)
-        static let divider = Color.white.opacity(0.08)
+        static var border: Color { currentColors.border }
+        static var divider: Color { currentColors.divider }
 
         // 悬停和选中
-        static let hover = Color.white.opacity(0.08)
-        static let selected = Color.white.opacity(0.15)
+        static var hover: Color { currentColors.hover }
+        static var selected: Color { currentColors.selected }
 
         // 项目颜色 - 鲜艳配色
         static let projectColors: [String] = [
@@ -49,16 +53,14 @@ struct DesignSystem {
             "#3B82F6", // Blue
         ]
 
-        // 渐变背景 - 暗色
-        static let gradientBackground = LinearGradient(
-            colors: [
-                Color(red: 0.10, green: 0.10, blue: 0.12),
-                Color(red: 0.12, green: 0.11, blue: 0.14),
-                Color(red: 0.11, green: 0.12, blue: 0.15)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        // 渐变背景
+        static var gradientBackground: LinearGradient {
+            LinearGradient(
+                colors: [background, secondaryBackground, background],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
 
         static let accentGradient = LinearGradient(
             colors: [accent, accentLight],
@@ -101,17 +103,24 @@ struct DesignSystem {
         static let tiny = Font.system(size: 10, weight: .medium, design: .rounded)
     }
 
-    // 阴影 - 暗色主题用更深的阴影
+    // 阴影
     struct Shadows {
-        static let small = Color.black.opacity(0.3)
-        static let medium = Color.black.opacity(0.4)
-        static let large = Color.black.opacity(0.5)
+        static var small: Color {
+            ThemeManager.shared.currentTheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.1)
+        }
+        static var medium: Color {
+            ThemeManager.shared.currentTheme == .dark ? Color.black.opacity(0.4) : Color.black.opacity(0.15)
+        }
+        static var large: Color {
+            ThemeManager.shared.currentTheme == .dark ? Color.black.opacity(0.5) : Color.black.opacity(0.2)
+        }
         static let colored = { (color: Color) in color.opacity(0.4) }
     }
 }
 
 // MARK: - 卡片样式修饰符
 struct CardStyle: ViewModifier {
+    @ObservedObject private var themeManager = ThemeManager.shared
     var padding: CGFloat = DesignSystem.Spacing.md
     var cornerRadius: CGFloat = DesignSystem.Radius.medium
 

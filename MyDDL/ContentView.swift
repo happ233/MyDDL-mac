@@ -26,6 +26,7 @@ enum CalendarViewType: String, CaseIterable {
 enum MainViewMode {
     case calendar
     case requirements
+    case notes
 }
 
 // 用于 sheet(item:) 的日期范围结构
@@ -37,6 +38,7 @@ struct DateRangeSelection: Identifiable {
 
 struct ContentView: View {
     @EnvironmentObject var dataStore: DataStore
+    @EnvironmentObject var themeManager: ThemeManager
     @State private var selectedDate = Date()
     @State private var viewType: CalendarViewType = .month
     @State private var showingTaskForm = false
@@ -51,6 +53,11 @@ struct ContentView: View {
     // 需求相关
     @State private var selectedRequirementStatus: RequirementStatus?
     @State private var selectedRequirement: Requirement?
+
+    // 笔记相关
+    @State private var selectedNote: Note?
+    @State private var noteListWidth: CGFloat = 180
+    @State private var isNoteListCollapsed: Bool = false
 
     // 用 item 方式管理日期范围选择的 sheet
     @State private var dateRangeSelection: DateRangeSelection?
@@ -103,12 +110,28 @@ struct ContentView: View {
                             )
                         }
                     }
-                } else {
+                } else if mainViewMode == .requirements {
                     // Requirements view
                     RequirementListView(
                         selectedStatus: $selectedRequirementStatus,
                         selectedRequirement: $selectedRequirement
                     )
+                } else if mainViewMode == .notes {
+                    // Notes view with list and editor
+                    HStack(spacing: 0) {
+                        NoteListView(
+                            selectedNote: $selectedNote,
+                            listWidth: $noteListWidth,
+                            isCollapsed: $isNoteListCollapsed
+                        )
+
+                        Rectangle()
+                            .fill(DesignSystem.Colors.divider)
+                            .frame(width: 1)
+
+                        NoteEditorView(note: $selectedNote)
+                            .id(selectedNote?.id)
+                    }
                 }
             }
             .background(DesignSystem.Colors.secondaryBackground)

@@ -5,10 +5,9 @@ class DataStore: ObservableObject {
     @Published var tasks: [Task] = []
     @Published var projects: [Project] = []
     @Published var requirements: [Requirement] = []
+    @Published var notes: [Note] = []
 
-    private let tasksKey = "myddl_tasks"
-    private let projectsKey = "myddl_projects"
-    private let requirementsKey = "myddl_requirements"
+    private let db = DatabaseManager.shared
 
     init() {
         loadData()
@@ -17,189 +16,29 @@ class DataStore: ObservableObject {
     // MARK: - Data Persistence
 
     private func loadData() {
-        if let tasksData = UserDefaults.standard.data(forKey: tasksKey),
-           let decodedTasks = try? JSONDecoder().decode([Task].self, from: tasksData) {
-            tasks = decodedTasks
-        }
-
-        if let projectsData = UserDefaults.standard.data(forKey: projectsKey),
-           let decodedProjects = try? JSONDecoder().decode([Project].self, from: projectsData) {
-            projects = decodedProjects
-        }
-
-        if let requirementsData = UserDefaults.standard.data(forKey: requirementsKey),
-           let decodedRequirements = try? JSONDecoder().decode([Requirement].self, from: requirementsData) {
-            requirements = decodedRequirements
-        }
-
-        // 首次运行时导入已上线需求
-        if requirements.isEmpty {
-            importReleasedRequirements()
-        }
-
-        // 检查是否需要导入已废弃需求
-        let hasDeprecated = requirements.contains { $0.status == .deprecated }
-        if !hasDeprecated {
-            importDeprecatedRequirements()
-        }
+        tasks = db.fetchAllTasks()
+        projects = db.fetchAllProjects()
+        requirements = db.fetchAllRequirements()
+        notes = db.fetchAllNotes()
 
         // Add default project if none exist
         if projects.isEmpty {
             let defaultProject = Project(name: "默认项目", colorHex: "#5B8DEF")
             projects.append(defaultProject)
-            saveProjects()
+            db.saveProject(defaultProject)
         }
-    }
-
-    private func importReleasedRequirements() {
-        let releasedRequirements = [
-            "【需求】双语学习报告优化/反讲落报告",
-            "【需求】精准学报告支持英语图书",
-            "【需求】背单词状态推4s",
-            "【需求】学习报告 http开头的icon https 3.12上线",
-            "【fix】【bug】报告老师信息",
-            "【需求】学习报告新增互动 非凡 10.04",
-            "【优化】每日挑战-伴读未解锁状态能点进去 非凡 4.9上线",
-            "【需求】学习报告 - 双语 - 原生语音测评语音条",
-            "【BUG】时长 补点BUG",
-            "【需求】错题本 - 举一反三 4.9上线",
-            "【bug】学研配置后台 加游戏化配置项下发",
-            "【需求】创新思维阶段报告url推4s exam服务",
-            "【需求】学研后台-新版学习中心排查页",
-            "【需求】阶段报告配置化 5.26上线",
-            "【BUG】报告慢查询 5.28上线",
-            "【BUG】一讲三练 非标",
-            "【需求】报告-新互动K歌 6.3上线",
-            "【BUG】duration-worker: 补点",
-            "【其他】diary表加联合索引",
-            "【需求】游戏化1.0加任务 K歌 6.4上线",
-            "【BUG】AI平台入口",
-            "【需求】智能课表-订单跳转 6.10上线",
-            "【需求】阅读探究 - 改获取奖励的接口 6.11上线",
-            "【优化】阶段报告缓存问题",
-            "【时长】缓存过期",
-            "【BUG】阅读L0报告 不绑魔方ID报错",
-            "【需求】janus主动缓存 P0",
-            "【需求】Redis key问题",
-            "【需求】janus强依赖",
-            "【需求】开口练-新版-新老大纲",
-            "【优化】反讲审核标签推4S优化 兼容质检",
-            "游戏化2.0 janus studycenter",
-            "游戏化2.0后台 xyadmin xes-service-monitor",
-            "报告 请求quize接口加参数",
-            "老师评语模块接口",
-            "游戏化1.0 加天天练课程工具入口",
-            "时长 修时长推topic上线",
-            "报告 - 大纲考试",
-            "【需求】阶段报告新模块、链接推4S",
-            "大头照课前推互动 10.22上线",
-            "案例后台 10.27上线",
-            "案例后台 权限改造",
-            "案例后台 业务线改造",
-            "初中学情报告",
-            "learningreport, stageexam 双活域名改造",
-            "模拟回复agent 1.0",
-            "模拟回复agent 评测",
-            "rpa群自动化一期",
-            "大头照积压优化+压测",
-            "零宽埋点"
-        ]
-
-        let baseDate = Date()
-        for (index, title) in releasedRequirements.enumerated() {
-            let priority: RequirementPriority
-            if title.contains("P0") {
-                priority = .p0
-            } else if title.contains("BUG") || title.contains("bug") || title.contains("fix") {
-                priority = .p1
-            } else if title.contains("优化") {
-                priority = .p2
-            } else {
-                priority = .p2
-            }
-
-            // 按顺序递增时间戳，后面的需求时间更晚
-            let createdAt = baseDate.addingTimeInterval(Double(index))
-
-            let req = Requirement(
-                title: title,
-                description: "",
-                status: .released,
-                priority: priority,
-                projectId: nil,
-                relatedTaskIds: [],
-                createdAt: createdAt,
-                updatedAt: createdAt
-            )
-            requirements.append(req)
-        }
-        saveRequirements()
-    }
-
-    private func importDeprecatedRequirements() {
-        let deprecatedRequirements = [
-            "通用宝箱补发",
-            "【需求】janus panic问题修复 studycenter 主动缓存内存问题",
-            "【优化】录播消费品学习报告优化 测试中 learningreport fix/record_report_up",
-            "【优化】studycenter慢接口上线 反讲",
-            "【BUG】【待启动】代码本调课问题 URL里加两个字段",
-            "【需求】阅读探究 老版/游戏化/新版 支持新老大纲",
-            "【需求】【开发】精准学Pad适配 待定",
-            "【开发】【脚本】深度补偿发家具",
-            "【测试】【优化】周宝箱 重复接口调用优化 非凡 studycenter - fix/weekTask_inter_op",
-            "【测试】【BUG】修 反讲 审核中/未审核 展示状态 studycenter - feature/retell_status，assess",
-            "【评审】时长 客户端补点",
-            "【评审】【需求】报告-互动开放",
-            "【评审】需求机器人",
-            "【worker上云】 duration-worker learningreport-worker",
-            "课中大头照优化 去掉视频处理"
-        ]
-
-        let baseDate = Date()
-        for (index, title) in deprecatedRequirements.enumerated() {
-            let priority: RequirementPriority
-            if title.contains("BUG") || title.contains("bug") {
-                priority = .p1
-            } else if title.contains("优化") {
-                priority = .p2
-            } else {
-                priority = .p3
-            }
-
-            // 按顺序递增时间戳，后面的需求时间更晚（倒序展示时第一个会在最上面）
-            let createdAt = baseDate.addingTimeInterval(Double(index))
-
-            let req = Requirement(
-                title: title,
-                description: "",
-                status: .deprecated,
-                priority: priority,
-                projectId: nil,
-                relatedTaskIds: [],
-                createdAt: createdAt,
-                updatedAt: createdAt
-            )
-            requirements.append(req)
-        }
-        saveRequirements()
     }
 
     private func saveTasks() {
-        if let encoded = try? JSONEncoder().encode(tasks) {
-            UserDefaults.standard.set(encoded, forKey: tasksKey)
-        }
+        db.saveTasks(tasks)
     }
 
     private func saveProjects() {
-        if let encoded = try? JSONEncoder().encode(projects) {
-            UserDefaults.standard.set(encoded, forKey: projectsKey)
-        }
+        db.saveProjects(projects)
     }
 
     private func saveRequirements() {
-        if let encoded = try? JSONEncoder().encode(requirements) {
-            UserDefaults.standard.set(encoded, forKey: requirementsKey)
-        }
+        db.saveRequirements(requirements)
     }
 
     // MARK: - Task CRUD
@@ -217,19 +56,18 @@ class DataStore: ObservableObject {
             relatedTaskIds: [task.id]
         )
         requirements.append(requirement)
+        db.saveRequirement(requirement)
 
         // Link task to the requirement
         newTask.requirementId = requirement.id
         tasks.append(newTask)
-
-        saveTasks()
-        saveRequirements()
+        db.saveTask(newTask)
     }
 
     // 添加任务但不自动创建需求（用于拆分任务等场景）
     func addTaskWithoutRequirement(_ task: Task) {
         tasks.append(task)
-        saveTasks()
+        db.saveTask(task)
     }
 
     func updateTask(_ task: Task) {
@@ -237,6 +75,7 @@ class DataStore: ObservableObject {
             var updatedTask = task
             updatedTask.updatedAt = Date()
             tasks[index] = updatedTask
+            db.saveTask(updatedTask)
 
             // Sync to requirement if linked
             if let reqId = task.requirementId,
@@ -247,10 +86,8 @@ class DataStore: ObservableObject {
                 req.projectId = task.projectId
                 req.updatedAt = Date()
                 requirements[reqIndex] = req
-                saveRequirements()
+                db.saveRequirement(req)
             }
-
-            saveTasks()
         }
     }
 
@@ -258,11 +95,11 @@ class DataStore: ObservableObject {
         // Also delete the linked requirement
         if let reqId = task.requirementId {
             requirements.removeAll { $0.id == reqId }
-            saveRequirements()
+            db.deleteRequirement(id: reqId)
         }
 
         tasks.removeAll { $0.id == task.id }
-        saveTasks()
+        db.deleteTask(id: task.id)
     }
 
     func deleteTask(id: UUID) {
@@ -270,7 +107,7 @@ class DataStore: ObservableObject {
             deleteTask(task)
         } else {
             tasks.removeAll { $0.id == id }
-            saveTasks()
+            db.deleteTask(id: id)
         }
     }
 
@@ -278,22 +115,26 @@ class DataStore: ObservableObject {
 
     func addProject(_ project: Project) {
         projects.append(project)
-        saveProjects()
+        db.saveProject(project)
     }
 
     func updateProject(_ project: Project) {
         if let index = projects.firstIndex(where: { $0.id == project.id }) {
             projects[index] = project
-            saveProjects()
+            db.saveProject(project)
         }
     }
 
     func deleteProject(_ project: Project) {
         // Remove all tasks associated with this project
+        let tasksToDelete = tasks.filter { $0.projectId == project.id }
+        for task in tasksToDelete {
+            db.deleteTask(id: task.id)
+        }
         tasks.removeAll { $0.projectId == project.id }
+
         projects.removeAll { $0.id == project.id }
-        saveTasks()
-        saveProjects()
+        db.deleteProject(id: project.id)
     }
 
     // MARK: - Query Methods
@@ -360,7 +201,7 @@ class DataStore: ObservableObject {
             updatedTask.endDate = newStartDate.addingTimeInterval(duration)
             updatedTask.updatedAt = Date()
             tasks[index] = updatedTask
-            saveTasks()
+            db.saveTask(updatedTask)
         }
     }
 
@@ -370,7 +211,7 @@ class DataStore: ObservableObject {
             updatedTask.endDate = max(newEndDate, task.startDate)
             updatedTask.updatedAt = Date()
             tasks[index] = updatedTask
-            saveTasks()
+            db.saveTask(updatedTask)
         }
     }
 
@@ -378,7 +219,7 @@ class DataStore: ObservableObject {
 
     func addRequirement(_ requirement: Requirement) {
         requirements.append(requirement)
-        saveRequirements()
+        db.saveRequirement(requirement)
     }
 
     func updateRequirement(_ requirement: Requirement) {
@@ -386,7 +227,7 @@ class DataStore: ObservableObject {
             var updated = requirement
             updated.updatedAt = Date()
             requirements[index] = updated
-            saveRequirements()
+            db.saveRequirement(updated)
 
             // Sync title/description back to linked task
             if let taskIndex = tasks.firstIndex(where: { $0.requirementId == requirement.id }) {
@@ -396,7 +237,7 @@ class DataStore: ObservableObject {
                 task.projectId = requirement.projectId
                 task.updatedAt = Date()
                 tasks[taskIndex] = task
-                saveTasks()
+                db.saveTask(task)
             }
         }
     }
@@ -404,12 +245,13 @@ class DataStore: ObservableObject {
     func deleteRequirement(_ requirement: Requirement) {
         // Also delete linked task
         if let taskIndex = tasks.firstIndex(where: { $0.requirementId == requirement.id }) {
+            let task = tasks[taskIndex]
             tasks.remove(at: taskIndex)
-            saveTasks()
+            db.deleteTask(id: task.id)
         }
 
         requirements.removeAll { $0.id == requirement.id }
-        saveRequirements()
+        db.deleteRequirement(id: requirement.id)
     }
 
     func deleteRequirement(id: UUID) {
@@ -417,7 +259,7 @@ class DataStore: ObservableObject {
             deleteRequirement(req)
         } else {
             requirements.removeAll { $0.id == id }
-            saveRequirements()
+            db.deleteRequirement(id: id)
         }
     }
 
@@ -448,5 +290,194 @@ class DataStore: ObservableObject {
 
     func tasks(for requirement: Requirement) -> [Task] {
         tasks.filter { $0.requirementId == requirement.id }
+    }
+
+    // MARK: - Note CRUD
+
+    func addNote(_ note: Note) {
+        notes.append(note)
+        db.saveNote(note)
+    }
+
+    func updateNote(_ note: Note) {
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            let existing = notes[index]
+            // 只比较 title、content 和 isPinned，不比较 rtfData（因为序列化每次可能不同）
+            let contentChanged = existing.title != note.title ||
+                                 existing.content != note.content ||
+                                 existing.isPinned != note.isPinned
+
+            debugLog("[DataStore] updateNote: contentChanged=\(contentChanged), title: '\(existing.title)' -> '\(note.title)', content: '\(existing.content.prefix(50))' -> '\(note.content.prefix(50))'")
+
+            var updated = note
+            if contentChanged {
+                updated.updatedAt = Date()
+                debugLog("[DataStore] updateNote: Content changed, updating updatedAt")
+            } else {
+                updated.updatedAt = existing.updatedAt
+                debugLog("[DataStore] updateNote: No change, keeping original updatedAt")
+            }
+            notes[index] = updated
+            db.saveNote(updated)
+        }
+    }
+
+    func deleteNote(_ note: Note) {
+        // Delete associated images
+        let imagesToDelete = note.imageFilenames
+        ImageManager.shared.deleteImages(filenames: imagesToDelete)
+
+        notes.removeAll { $0.id == note.id }
+        db.deleteNote(id: note.id)
+    }
+
+    func deleteNote(id: UUID) {
+        // Find note first to get image filenames
+        if let note = notes.first(where: { $0.id == id }) {
+            deleteNote(note)
+        } else {
+            notes.removeAll { $0.id == id }
+            db.deleteNote(id: id)
+        }
+    }
+
+    /// 记录每个笔记在列表中的稳定位置（用于编辑时保持位置不变）
+    private var notePositions: [UUID: Int] = [:]
+
+    func sortedNotes(editing editingNoteId: UUID? = nil) -> [Note] {
+        // 基础排序：置顶优先，然后按更新时间
+        var result = notes.sorted { note1, note2 in
+            if note1.isPinned != note2.isPinned {
+                return note1.isPinned
+            }
+            return note1.updatedAt > note2.updatedAt
+        }
+
+        // 如果有正在编辑的笔记，检查它是否因为编辑而移动了
+        if let editId = editingNoteId,
+           let savedPosition = notePositions[editId],
+           let currentIndex = result.firstIndex(where: { $0.id == editId }),
+           currentIndex != savedPosition {
+            // 把它移回原位置
+            let note = result.remove(at: currentIndex)
+            let targetIndex = min(savedPosition, result.count)
+            result.insert(note, at: targetIndex)
+        }
+
+        // 更新位置缓存（排除正在编辑的笔记）
+        for (index, note) in result.enumerated() {
+            if note.id != editingNoteId {
+                notePositions[note.id] = index
+            }
+        }
+        // 如果没有正在编辑的笔记，也更新它的位置
+        if editingNoteId == nil {
+            for (index, note) in result.enumerated() {
+                notePositions[note.id] = index
+            }
+        }
+
+        return result
+    }
+
+    func toggleNotePin(_ note: Note) {
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            var updated = notes[index]
+            updated.isPinned.toggle()
+            // 不更新 updatedAt，保持笔记在组内的相对位置
+            notes[index] = updated
+            db.saveNote(updated)
+        }
+    }
+
+    /// Clean up orphan images that are no longer referenced by any note
+    func cleanOrphanImages() {
+        var allReferencedFilenames: Set<String> = []
+        for note in notes {
+            allReferencedFilenames.formUnion(note.imageFilenames)
+        }
+        ImageManager.shared.cleanOrphanImages(referencedFilenames: allReferencedFilenames)
+    }
+
+    // MARK: - Import from JSON
+
+    func importFromJSON(url: URL) {
+        guard let data = try? Data(contentsOf: url),
+              let jsonData = try? JSONDecoder().decode(JSONRequirementData.self, from: data) else {
+            return
+        }
+
+        // 清除旧的已上线和已废弃需求
+        let idsToRemove = requirements.filter { $0.status == .released || $0.status == .deprecated }.map { $0.id }
+        for id in idsToRemove {
+            db.deleteRequirement(id: id)
+        }
+        requirements.removeAll { $0.status == .released || $0.status == .deprecated }
+
+        let baseDate = Date()
+
+        // 导入已上线需求
+        if let released = jsonData.released {
+            for (index, item) in released.enumerated() {
+                let priority = determinePriority(from: item.title)
+                let createdAt = baseDate.addingTimeInterval(Double(index))
+
+                let req = Requirement(
+                    title: item.title,
+                    description: item.description,
+                    status: .released,
+                    priority: priority,
+                    projectId: nil,
+                    relatedTaskIds: [],
+                    createdAt: createdAt,
+                    updatedAt: createdAt
+                )
+                requirements.append(req)
+                db.saveRequirement(req)
+            }
+        }
+
+        // 导入已废弃需求
+        if let deprecated = jsonData.deprecated {
+            for (index, item) in deprecated.enumerated() {
+                let priority = determinePriority(from: item.title)
+                let createdAt = baseDate.addingTimeInterval(Double(index))
+
+                let req = Requirement(
+                    title: item.title,
+                    description: item.description,
+                    status: .deprecated,
+                    priority: priority,
+                    projectId: nil,
+                    relatedTaskIds: [],
+                    createdAt: createdAt,
+                    updatedAt: createdAt
+                )
+                requirements.append(req)
+                db.saveRequirement(req)
+            }
+        }
+    }
+
+    private struct JSONRequirementData: Codable {
+        let released: [JSONRequirementItem]?
+        let deprecated: [JSONRequirementItem]?
+    }
+
+    private struct JSONRequirementItem: Codable {
+        let title: String
+        let description: String
+    }
+
+    private func determinePriority(from title: String) -> RequirementPriority {
+        if title.contains("P0") {
+            return .p0
+        } else if title.contains("BUG") || title.contains("bug") || title.contains("fix") {
+            return .p1
+        } else if title.contains("优化") {
+            return .p2
+        } else {
+            return .p2
+        }
     }
 }
